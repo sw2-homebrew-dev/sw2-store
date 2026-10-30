@@ -1,0 +1,50 @@
+name: release
+# Push a tag matching app/manifest.json's version (v1.0.0) to publish
+# sw2-store-<version>.zip, its .sha256 and a catalog record.  Builds with the
+# released sw2-sdk (repository variable SW2_SDK_VERSION, default: latest).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pil gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+      - name: sw2-sdk (release)
+        env:
+          SW2_VERSION: ${{ vars.SW2_SDK_VERSION }}
+        run: |
+          curl -fsSL https://github.com/sw2-homebrew-dev/sw2-sdk/releases/latest/download/install.sh | sh
+          echo "SW2_SDK=$HOME/.local/share/sw2-sdk" >> "$GITHUB_ENV"
+      - name: Test
+        run: sh tests/run.sh
+      - name: Build and package
+        run: |
+          tag=${GITHUB_REF_NAME#v}
+          version=$(python3 -c "import json;print(json.load(open('app/manifest.json'))['version'])")
+          [ "$version" = "$tag" ] || { echo "manifest version $version does not match tag $GITHUB_REF_NAME"; exit 1; }
+          work=$(mktemp -d)/sw2-store
+          cp -R app "$work"
+          "$SW2_SDK/sw2" build "$work"
+          "$SW2_SDK/sw2" package "$work" --out dist \
+            --url-base "https://github.com/${{ github.repository }}/releases/download/$GITHUB_REF_NAME" \
+            --author sw2-homebrew-dev --category utility --license MIT \
+            --source-repo "https://github.com/${{ github.repository }}"
+          ls -l dist
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.sha256 dist/*.catalog.json \
+            --title "Homebrew Store $GITHUB_REF_NAME" \
+            --notes "On-console store for sw2-sdk launchers. Install: unzip into your sw2-sdk \`apps/\` folder (or run \`./install.sh\` from a checkout), then \`sw2 run\`. Desktop fallback: \`sw2 store\`.
+
+          sha256: $(cut -d' ' -f1 dist/*.zip.sha256)"
