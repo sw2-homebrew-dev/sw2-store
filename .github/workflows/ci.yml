@@ -1,0 +1,25 @@
+name: ci
+on: [push, pull_request]
+env:
+  SW2_SDK_REPO: ${{ vars.SW2_SDK_REPO || 'https://github.com/sw2-homebrew-dev/sw2-sdk.git' }}
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: git clone --depth 1 "$SW2_SDK_REPO" .sw2-sdk
+      - run: SW2_SDK=.sw2-sdk sh tests/run.sh
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pil gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+      - run: git clone --depth 1 "$SW2_SDK_REPO" .sw2-sdk
+      - run: |
+          cp -r app .sw2-sdk/apps/sw2-store
+          .sw2-sdk/sw2 build .sw2-sdk/apps/sw2-store
+          .sw2-sdk/sw2 package .sw2-sdk/apps/sw2-store --out dist --category utility --license MIT
+      - uses: actions/upload-artifact@v4
+        with: {name: sw2-store, path: dist/}

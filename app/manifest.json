@@ -1,0 +1,12 @@
+{
+  "id": "sw2-store",
+  "name": "Homebrew Store",
+  "description": "Browse, install, update and remove homebrew from the catalog",
+  "version": "1.0.0",
+  "abi": 3,
+  "kind": "native",
+  "icon": "icon.png",
+  "services": ["store", "info"],
+  "assets": [],
+  "limits": {"heap_bytes": 1048576, "stack_bytes": 262144, "frames": 1000000}
+}

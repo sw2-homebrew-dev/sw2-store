@@ -1,0 +1,5 @@
+#!/bin/sh
+# Desktop store (fallback when the console is not connected): same catalog,
+# same installer, same apps/ folder as the on-console store.
+SDK=${SW2_SDK:-"$(dirname "$(readlink -f "$0")")/../sw2-sdk"}
+exec "$SDK/sw2" store "$@"
